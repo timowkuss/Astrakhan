@@ -71,6 +71,8 @@ export default function Admin({
   const [photoError, setPhotoError] = useState("");
   const galleryInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  const catalogInput = useRef<HTMLInputElement>(null);
+  const [catalogDraft, setCatalogDraft] = useState<any>(null);
   useEffect(() => {
     if (!photo) {
       setPhotoUrl("");
@@ -508,6 +510,40 @@ export default function Admin({
             <div className="button-row">
               <Button
                 variant="outline"
+                disabled={busy}
+                onClick={() => catalogInput.current?.click()}
+              >
+                <Upload size={17} /> Импорт каталога
+              </Button>
+              <input
+                ref={catalogInput}
+                type="file"
+                accept=".json,application/json"
+                hidden
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  e.currentTarget.value = "";
+                  if (file)
+                    void perform(async () => {
+                      if (file.size > 95000)
+                        throw new Error(
+                          "Файл слишком большой. Разделите каталог на части до 95 КБ.",
+                        );
+                      const data = JSON.parse(await file.text());
+                      if (
+                        data.format !== "astrakhan-catalog-v1" ||
+                        !Array.isArray(data.products) ||
+                        !data.products.length
+                      )
+                        throw new Error(
+                          "Нужен файл формата astrakhan-catalog-v1.",
+                        );
+                      setCatalogDraft({ ...data, replaceCatalog: false });
+                    });
+                }}
+              />
+              <Button
+                variant="outline"
                 onClick={() => {
                   setKind("brand");
                   setEdit({ name: "" });
@@ -653,6 +689,53 @@ export default function Admin({
           </div>
         </TabsContent>
       </Tabs>
+      <Dialog
+        open={!!catalogDraft}
+        onOpenChange={(open) => {
+          if (!open && !busy) setCatalogDraft(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Импорт каталога</DialogTitle>
+            <DialogDescription>
+              В файле {catalogDraft?.products.length} товаров. Совпадения по
+              внешнему коду обновят цены и остатки, остальные товары сохранятся.
+              Фотографии не изменятся.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="muted">
+            Это формат обмена магазина. Для выгрузки из настоящей 1С нужен
+            адаптер под вашу конфигурацию.
+          </p>
+          <div className="button-row">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => setCatalogDraft(null)}
+            >
+              Отмена
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                void perform(async () => {
+                  const result = await api(
+                    "admin/catalog/import",
+                    "POST",
+                    catalogDraft,
+                  );
+                  setCatalogDraft(null);
+                  await onLogin();
+                  toast.success("Обновлено товаров: " + result.imported);
+                })
+              }
+            >
+              {busy ? "Загружаем…" : "Импортировать"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!photoProduct}
         onOpenChange={(open) => {

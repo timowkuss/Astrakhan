@@ -1,0 +1,37 @@
+import fs from "node:fs";
+import assert from "node:assert/strict";
+const base = process.env.TEST_URL || "http://localhost:5173";
+assert(["localhost", "127.0.0.1"].includes(new URL(base).hostname), "Demo import is local only");
+assert(process.argv.includes("--apply-demo"), "Pass --apply-demo to replace the visible demo assortment");
+const data = JSON.parse(fs.readFileSync("public/demo/catalog.json", "utf8"));
+const credentials = JSON.parse(fs.readFileSync(".local/admin-credentials.json", "utf8").replace(/^\uFEFF/, ""));
+let cookie = "";
+async function call(path, body, expected = 200) {
+  const r = await fetch(base + "/api/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json",Origin:base,Cookie:cookie},body:body ? JSON.stringify(body) : undefined});
+  const d = await r.json(); assert.equal(r.status,expected,JSON.stringify(d));
+  if(r.headers.get("set-cookie")) cookie = r.headers.get("set-cookie").split(";")[0];
+  return d;
+}
+await call("admin/catalog/import", data, 403);
+await call("admin/login", credentials);
+const result = await call("admin/catalog/import", {...data,replaceCatalog:true});
+assert.equal(result.imported,30); assert.equal(result.stockUnits,300);
+console.log("PASS protected import; 30 products and 300 pieces");
+const first = await call("catalog");
+assert.equal(first.products.length,30);
+assert.equal(first.products.reduce((n,p)=>n+p.stock,0),300);
+await call("admin/catalog/import", {...data,products:[data.products[0],data.products[0]]},400);
+await call("admin/catalog/import", {...data,products:[data.products[0],{...data.products[1],categoryId:"missing-category"}]},400);
+assert.deepEqual((await call("catalog")).products,first.products);
+console.log("PASS invalid imports leave catalog unchanged");
+const form = new FormData();
+form.set("file",new Blob([fs.readFileSync("public/products/milk-prost.webp")],{type:"image/webp"}),"milk.webp");
+const upload = await fetch(base + "/api/admin/products/import-demo-001/image",{method:"POST",headers:{Origin:base,Cookie:cookie},body:form});
+assert.equal(upload.status,200);
+const withPhoto = (await call("catalog")).products.find(p=>p.id==="import-demo-001");
+await call("admin/catalog/import",data);
+const after = await call("catalog");
+assert.equal(after.products.length,30);
+assert.equal(after.products.find(p=>p.id==="import-demo-001").image,withPhoto.image);
+console.log("PASS reimport does not duplicate products or overwrite admin photos");
+console.log("Demo catalog ready: " + base + "/demo/catalog.html");

@@ -27,6 +27,7 @@ import {
 } from "@/lib/server/security";
 import { whatsAppProvider } from "@/lib/server/providers";
 import { catalog, searchCatalog } from "@/lib/server/catalog";
+import { importCatalog } from "@/lib/server/catalog-import";
 import {
   cartFor,
   setCart,
@@ -294,6 +295,13 @@ async function handle(req: Request) {
           JSON.stringify(data),
           now(),
         );
+      if (path === "admin/catalog/import" && method === "POST") {
+        return json(
+          await importCatalog(body, (data) =>
+            audit("catalog.import", "main", data),
+          ),
+        );
+      }
       if (path === "admin/orders" && method === "GET") {
         return json({
           orders: (

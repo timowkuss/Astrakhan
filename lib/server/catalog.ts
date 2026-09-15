@@ -2,7 +2,7 @@ import { rows } from "./db";
 import { matchesSearch } from "../domain";
 export async function catalog() {
   return rows(
-    `SELECT p.id,p.name,p.brand_id,p.category_id,p.description,p.details,p.price/100.0 AS price,p.unit,p.stock,b.name AS brand,COALESCE(i.url,'') AS image FROM products p JOIN brands b ON b.id=p.brand_id LEFT JOIN product_images i ON i.product_id=p.id WHERE p.active=1 AND p.store_id='main' ORDER BY p.rowid`,
+    `SELECT p.id,p.name,p.brand_id,p.category_id,p.description,p.details,p.price/100.0 AS price,p.unit,p.stock,b.name AS brand,COALESCE(i.url,'/products/placeholder.svg') AS image FROM products p JOIN brands b ON b.id=p.brand_id LEFT JOIN product_images i ON i.product_id=p.id WHERE p.active=1 AND p.store_id='main' ORDER BY p.rowid`,
   );
 }
 export async function searchCatalog(params: URLSearchParams) {
