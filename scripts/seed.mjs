@@ -1,0 +1,253 @@
+import fs from "node:fs";
+import { spawnSync } from "node:child_process";
+const categories = [
+  ["dairy", "Молочные продукты", null, 0, "milk"],
+  ["produce", "Овощи и фрукты", null, 1, "apple"],
+  ["meat", "Мясо и птица", null, 2, "beef"],
+  ["bakery", "Хлеб и выпечка", null, 3, "bread"],
+  ["drinks", "Напитки", null, 4, "bottle"],
+  ["home", "Для дома", null, 5, "sparkles"],
+  ["milk", "Молоко", "dairy", 0, "milk"],
+  ["kefir", "Кефир", "dairy", 1, "milk"],
+  ["yogurt", "Йогурты", "dairy", 2, "milk"],
+  ["cheese", "Сыр", "dairy", 3, "cheese"],
+  ["cream", "Сметана", "dairy", 4, "milk"],
+  ["curd", "Творог", "dairy", 5, "milk"],
+  ["butter", "Масло", "dairy", 6, "milk"],
+  ["vegetables", "Овощи", "produce", 0, "apple"],
+  ["fruits", "Фрукты", "produce", 1, "apple"],
+  ["beef", "Говядина", "meat", 0, "beef"],
+  ["chicken", "Птица", "meat", 1, "beef"],
+  ["bread", "Хлеб", "bakery", 0, "bread"],
+  ["water", "Вода", "drinks", 0, "bottle"],
+  ["cleaning", "Бытовая химия", "home", 0, "sparkles"],
+];
+const brands = [
+  ["prost", "Простоквашино"],
+  ["farm", "Фермерское"],
+  ["organic", "Organic Milk"],
+  ["milk", "Milk"],
+  ["local", "Местный урожай"],
+  ["bakery", "Пекарня"],
+  ["minere", "Minere"],
+  ["fairy", "Fairy"],
+];
+// Prices are minor units (tiyn); weighted quantities and stock are half-kilogram ticks.
+const products = [
+  [
+    "milk-25",
+    "Молоко 2,5%",
+    "prost",
+    "milk",
+    650,
+    "piece",
+    35,
+    "Пастеризованное, без добавок",
+    "930 мл · 2,5%",
+    "milk-prost",
+  ],
+  [
+    "kefir-1",
+    "Кефир натуральный",
+    "milk",
+    "kefir",
+    720,
+    "piece",
+    20,
+    "Нежный кисломолочный вкус",
+    "480 г",
+    "kefir",
+  ],
+  [
+    "tomato",
+    "Помидоры свежие",
+    "local",
+    "vegetables",
+    1290,
+    "kg",
+    60,
+    "Спелые и сочные, для салатов",
+    "Цена за 1 кг",
+    "tomato",
+  ],
+  [
+    "cheese",
+    "Сыр полутвёрдый",
+    "farm",
+    "cheese",
+    3200,
+    "kg",
+    24,
+    "Сливочный вкус и нежная текстура",
+    "45% · весовой",
+    "cheese",
+  ],
+  [
+    "bread-white",
+    "Хлеб пшеничный",
+    "bakery",
+    "bread",
+    350,
+    "piece",
+    24,
+    "Свежая выпечка с хрустящей корочкой",
+    "500 г",
+    "bread",
+  ],
+  [
+    "yogurt",
+    "Йогурт натуральный",
+    "organic",
+    "yogurt",
+    490,
+    "piece",
+    30,
+    "Термостатный, без наполнителя",
+    "200 г · 5,5%",
+    "yogurt",
+  ],
+  [
+    "beef-steak",
+    "Говядина охлаждённая",
+    "farm",
+    "beef",
+    4200,
+    "kg",
+    20,
+    "Свежая мякоть для любимых блюд",
+    "Без кости · весовая",
+    "beef",
+  ],
+  [
+    "apple-red",
+    "Яблоки красные",
+    "local",
+    "fruits",
+    890,
+    "kg",
+    50,
+    "Сочные, сладкие и хрустящие",
+    "Цена за 1 кг",
+    "apple",
+  ],
+  [
+    "water-1",
+    "Вода минеральная",
+    "minere",
+    "water",
+    290,
+    "piece",
+    60,
+    "Природная, негазированная",
+    "1 л",
+    "water",
+  ],
+  [
+    "fairy",
+    "Средство для мытья посуды",
+    "fairy",
+    "cleaning",
+    1190,
+    "piece",
+    0,
+    "Легко справляется с жиром",
+    "320 мл · Original",
+    "soap",
+  ],
+  [
+    "milk-farm",
+    "Молоко фермерское",
+    "farm",
+    "milk",
+    850,
+    "piece",
+    15,
+    "Цельное коровье молоко",
+    "1 л · цельное",
+    "milk",
+  ],
+  [
+    "kefir-prost",
+    "Кефир 2,5%",
+    "prost",
+    "kefir",
+    680,
+    "piece",
+    18,
+    "Классический кисломолочный напиток",
+    "930 г · 2,5%",
+    "kefir-prost",
+  ],
+];
+const q = (v) =>
+  v === null
+    ? "NULL"
+    : typeof v === "number"
+      ? String(v)
+      : "'" + v.replaceAll("'", "''") + "'";
+const insert = (table, cols, vals) =>
+  `INSERT OR IGNORE INTO ${table} (${cols}) VALUES (${vals.map(q).join(",")});`;
+const sql = [insert("stores", "id,name", ["main", "ASTRAKHAN"])];
+for (const c of categories)
+  sql.push(insert("categories", "id,name,parent_id,position,icon", c));
+for (const b of brands) sql.push(insert("brands", "id,name", b));
+for (const [
+  id,
+  name,
+  brand,
+  category,
+  price,
+  unit,
+  stock,
+  description,
+  details,
+  image,
+] of products) {
+  sql.push(
+    insert(
+      "products",
+      "id,store_id,name,brand_id,category_id,price,unit,stock,description,details,search",
+      [
+        id,
+        "main",
+        name,
+        brand,
+        category,
+        price * 100,
+        unit,
+        stock,
+        description,
+        details,
+        (name + " " + description + " " + details).toLowerCase(),
+      ],
+    ),
+  );
+  sql.push(
+    insert("product_images", "product_id,url", [
+      id,
+      "/products/" + image + ".webp",
+    ]),
+  );
+}
+fs.mkdirSync(".local", { recursive: true });
+fs.writeFileSync(".local/seed.sql", sql.join("\n"));
+const result = spawnSync(
+  process.execPath,
+  [
+    "--import",
+    "./scripts/sites-env.mjs",
+    "./node_modules/wrangler/bin/wrangler.js",
+    "d1",
+    "execute",
+    "DB",
+    "--local",
+    "--config",
+    "dist/server/wrangler.json",
+    "--persist-to",
+    ".wrangler/state",
+    "--file",
+    ".local/seed.sql",
+  ],
+  { stdio: "inherit" },
+);
+process.exit(result.status ?? 1);
