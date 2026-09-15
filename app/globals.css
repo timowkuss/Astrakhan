@@ -1380,6 +1380,26 @@ form > .primary-button {
   font-size: 12px;
   min-width: 100px;
 }
+.photo-dialog {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.photo-preview {
+  width: 100%;
+  height: min(32dvh, 280px);
+  object-fit: contain;
+  background: #f7f7f7;
+  border-radius: 12px;
+}
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.photo-actions > button {
+  min-height: 44px;
+  flex: 1 1 160px;
+}
 .upload-button {
   display: grid;
   place-items: center;

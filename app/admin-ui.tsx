@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Package,
   Grid2X2,
@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   Upload,
+  Camera,
   ShieldCheck,
   LoaderCircle,
   History,
@@ -64,6 +65,27 @@ export default function Admin({
     [adjustItems, setAdjustItems] = useState<any[]>([]),
     [addProduct, setAddProduct] = useState(""),
     [initial, setInitial] = useState(true);
+  const [photoProduct, setPhotoProduct] = useState<Product | null>(null);
+  const [photo, setPhoto] = useState<Blob | null>(null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoError, setPhotoError] = useState("");
+  const galleryInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!photo) {
+      setPhotoUrl("");
+      return;
+    }
+    const url = URL.createObjectURL(photo);
+    setPhotoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+  function closePhoto() {
+    if (busy) return;
+    setPhotoProduct(null);
+    setPhoto(null);
+    setPhotoError("");
+  }
   async function refresh() {
     try {
       if (admin) {
@@ -121,8 +143,14 @@ export default function Admin({
       toast.success("Изменения сохранены");
     });
   }
-  async function upload(file: File, p: Product) {
-    await perform(async () => {
+  async function preparePhoto(file: File) {
+    if (busy) return;
+    setBusy(true);
+    setPhotoError("");
+    setPhoto(null);
+    try {
+      if (file.size > 25 * 1024 * 1024)
+        throw new Error("Выберите фото размером до 25 МБ.");
       const bitmap = await createImageBitmap(file);
       const scale = Math.min(1, 900 / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement("canvas");
@@ -140,8 +168,28 @@ export default function Admin({
           0.82,
         ),
       );
+      if (blob.size > 1900000)
+        throw new Error("Фото слишком большое. Попробуйте другой снимок.");
+      setPhoto(blob);
+    } catch (e: any) {
+      setPhotoError(
+        e.name === "InvalidStateError" || e.name === "EncodingError"
+          ? "Не удалось открыть фото. Выберите JPEG, PNG или WebP; для камеры iPhone можно включить формат «Наиболее совместимые»."
+          : e.message ||
+              "Не удалось обработать фото. Попробуйте выбрать другой файл.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function upload(blob: Blob, p: Product) {
+    await perform(async () => {
       const form = new FormData();
-      form.set("file", blob, "product.webp");
+      form.set(
+        "file",
+        blob,
+        blob.type === "image/webp" ? "product.webp" : "product.png",
+      );
       const response = await fetch("/api/admin/products/" + p.id + "/image", {
         method: "POST",
         body: form,
@@ -149,6 +197,8 @@ export default function Admin({
       const result: any = await response.json();
       if (!response.ok) throw new Error(result.error);
       await onLogin();
+      setPhotoProduct(null);
+      setPhoto(null);
       toast.success("Фото обновлено");
     });
   }
@@ -510,21 +560,19 @@ export default function Admin({
                 >
                   <Pencil size={17} />
                 </Button>
-                <label
-                  className="upload-button"
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={busy}
                   aria-label={"Загрузить фото " + p.name}
+                  onClick={() => {
+                    setPhotoProduct(p);
+                    setPhoto(null);
+                    setPhotoError("");
+                  }}
                 >
                   <Upload size={18} />
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    disabled={busy}
-                    onChange={(e) => {
-                      if (e.target.files?.[0])
-                        void upload(e.target.files[0], p);
-                    }}
-                  />
-                </label>
+                </Button>
               </div>
             ))}
           </div>
@@ -605,6 +653,103 @@ export default function Admin({
           </div>
         </TabsContent>
       </Tabs>
+      <Dialog
+        open={!!photoProduct}
+        onOpenChange={(open) => {
+          if (!open) closePhoto();
+        }}
+      >
+        <DialogContent
+          className="photo-dialog"
+          onEscapeKeyDown={(e) => {
+            if (busy) e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            if (busy) e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Фото товара</DialogTitle>
+            <DialogDescription>
+              {photoProduct?.name}. Выберите фото или сделайте снимок, затем
+              сохраните.
+            </DialogDescription>
+          </DialogHeader>
+          {(photoUrl || photoProduct?.image) && (
+            <img
+              className="photo-preview"
+              src={photoUrl || photoProduct?.image}
+              alt={photo ? "Предпросмотр нового фото" : "Текущее фото товара"}
+            />
+          )}
+          <div className="photo-actions">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => galleryInput.current?.click()}
+            >
+              <Upload size={18} />
+              Выбрать фото
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => cameraInput.current?.click()}
+            >
+              <Camera size={18} />
+              Сфотографировать
+            </Button>
+          </div>
+          <input
+            ref={galleryInput}
+            hidden
+            type="file"
+            accept="image/*"
+            aria-label="Выбрать файл фотографии"
+            onChange={(e) => {
+              const f = e.currentTarget.files?.[0];
+              e.currentTarget.value = "";
+              if (f) void preparePhoto(f);
+            }}
+          />
+          <input
+            ref={cameraInput}
+            hidden
+            type="file"
+            accept="image/*"
+            capture="environment"
+            aria-label="Сделать снимок товара"
+            onChange={(e) => {
+              const f = e.currentTarget.files?.[0];
+              e.currentTarget.value = "";
+              if (f) void preparePhoto(f);
+            }}
+          />
+          <p className="muted">
+            На телефоне кнопка снимка открывает камеру, если браузер это
+            поддерживает. На компьютере может открыться выбор файла.
+          </p>
+          {photoError && (
+            <p className="error-message" role="alert">
+              {photoError}
+            </p>
+          )}
+          {busy && <p role="status">Обрабатываем фото…</p>}
+          <div className="photo-actions">
+            <Button variant="outline" disabled={busy} onClick={closePhoto}>
+              Отмена
+            </Button>
+            <Button
+              disabled={busy || !photo}
+              onClick={() => {
+                if (photo && photoProduct) void upload(photo, photoProduct);
+              }}
+            >
+              Сохранить фото
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!kind}
         onOpenChange={(open) => {
