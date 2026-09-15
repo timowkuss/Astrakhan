@@ -694,6 +694,7 @@ small {
   margin-bottom: 24px;
 }
 .site-footer {
+  flex-wrap: wrap;
   max-width: 1370px;
   margin: 15px auto 0;
   padding: 32px 0;
@@ -2258,4 +2259,19 @@ form > .primary-button {
   color: #767e88;
   white-space: nowrap;
   font-size: 13px;
+}
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.site-footer .social-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.social-links a:hover {
+  text-decoration: underline;
 }

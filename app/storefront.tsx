@@ -29,6 +29,8 @@ import {
   WifiOff,
   Leaf,
   ChevronDown,
+  Camera,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -1419,6 +1421,22 @@ export default function Storefront() {
             )}
           </a>
         )}
+        <nav className="social-links" aria-label="Социальные сети и связь">
+          <a
+            href="https://www.instagram.com/astrakhan_minimarket/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Camera size={18} aria-hidden="true" /> Instagram
+          </a>
+          <a
+            href="https://wa.me/77023135383"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <MessageCircle size={18} aria-hidden="true" /> WhatsApp
+          </a>
+        </nav>
         <button onClick={() => navigate("/admin")}>Для сотрудников</button>
       </footer>
       <nav className="mobile-nav" aria-label="Основная навигация">
@@ -1455,3 +1473,4 @@ export default function Storefront() {
     </>
   );
 }
+
