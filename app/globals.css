@@ -2268,10 +2268,46 @@ form > .primary-button {
 .site-footer .social-links a {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 44px;
-  font-size: 14px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: #fff;
+  box-shadow: 0 3px 9px rgb(0 0 0 / 10%);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
-.social-links a:hover {
-  text-decoration: underline;
+.social-icon svg {
+  width: 25px;
+  height: 25px;
+}
+.social-instagram {
+  background: radial-gradient(
+    circle at 25% 105%,
+    #feda75 0%,
+    #fa7e1e 28%,
+    #d62976 55%,
+    #962fbf 78%,
+    #4f5bd5 100%
+  );
+}
+.social-whatsapp {
+  background: #25d366;
+}
+.site-footer .social-links a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgb(0 0 0 / 16%);
+}
+.social-links a:focus-visible {
+  outline: 3px solid #292d35;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-footer .social-links a {
+    transition: none;
+  }
+  .site-footer .social-links a:hover {
+    transform: none;
+  }
 }
